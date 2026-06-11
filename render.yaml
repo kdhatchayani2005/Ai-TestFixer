@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ai-testfixer
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      PORT: "8501"
