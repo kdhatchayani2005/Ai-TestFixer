@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+*.log
+logs/
+screenshots/
+reports/
+database/testfixer.db
+*.egg-info
+.env

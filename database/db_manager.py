@@ -4,9 +4,22 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
-# Resolve database path relative to db_manager.py
-DB_DIR = Path(__file__).parent.resolve()
-DB_PATH = DB_DIR / "testfixer.db"
+# On Render (and other cloud platforms) the /app directory may be read-only after build.
+# Allow overriding the DB path via the DB_PATH environment variable.
+# Default: use /tmp so writes always succeed in a containerised environment.
+_env_db_path = os.getenv("DB_PATH")
+if _env_db_path:
+    DB_PATH = Path(_env_db_path)
+else:
+    # Local development: keep DB next to this file
+    _local_path = Path(__file__).parent.resolve() / "testfixer.db"
+    if _local_path.parent.exists() and os.access(str(_local_path.parent), os.W_OK):
+        DB_PATH = _local_path
+    else:
+        # Fallback to /tmp for read-only container filesystems (e.g. Render)
+        DB_PATH = Path("/tmp/testfixer.db")
+
+DB_DIR = DB_PATH.parent
 
 def get_connection():
     """Returns a connection to the SQLite database, ensuring directory exists."""

@@ -5,8 +5,11 @@ services:
     dockerfilePath: ./Dockerfile
     plan: free
     autoDeploy: true
-    healthCheckPath: /
+    healthCheckPath: /_stcore/health
     envVars:
-      GROK_API_KEY: "GROK_API_KEY_PLACEHOLDER"
-      BACKEND: "grok"
-      PORT: "8501"
+      - key: GROK_API_KEY
+        sync: false
+      - key: BACKEND
+        value: grok
+      - key: PORT
+        value: "8501"

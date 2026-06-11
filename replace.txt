@@ -1,0 +1,2 @@
+regex xai-[A-Za-z0-9]+==${GROK_API_KEY}
+
