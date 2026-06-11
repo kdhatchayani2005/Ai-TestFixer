@@ -7,6 +7,6 @@ services:
     autoDeploy: true
     healthCheckPath: /
     envVars:
-      GROK_API_KEY: "YOUR_GROK_API_KEY"
+      GROK_API_KEY: "GROK_API_KEY_PLACEHOLDER"
       BACKEND: "grok"
       PORT: "8501"
