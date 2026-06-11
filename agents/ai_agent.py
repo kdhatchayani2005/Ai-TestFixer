@@ -4,7 +4,7 @@ import requests
 import os
 
 class AIAgent:
-    def __init__(self, api_url=None, model="llama3", backend="ollama"):
+    def __init__(self, api_url=None, model="mixtral-8x7b-32768", backend="ollama"):
         """Initialize the AI agent.
 
         Parameters:
