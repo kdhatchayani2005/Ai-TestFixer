@@ -1,11 +1,34 @@
 import json
 import re
 import requests
+import os
 
 class AIAgent:
-    def __init__(self, api_url="http://localhost:11434/api/generate", model="llama3"):
-        self.api_url = api_url
+    def __init__(self, api_url=None, model="llama3", backend="ollama"):
+        """Initialize the AI agent.
+
+        Parameters:
+        - api_url: optional custom endpoint URL.
+        - model: model name (default "llama3" for Ollama, can be overridden for Grok).
+        - backend: "ollama" or "grok". Determines request formatting and authentication.
+        """
+        self.backend = backend.lower()
         self.model = model
+        # Determine endpoint based on backend
+        if api_url:
+            self.api_url = api_url
+        else:
+            if self.backend == "grok":
+                # Expect GROK_API_KEY in environment
+                self.api_key = os.getenv("GROK_API_KEY")
+                if not self.api_key:
+                    raise ValueError("GROK_API_KEY env var not set for Grok backend")
+                self.api_url = "https://api.grok.ai/v1/completions"
+            else:
+                # Default to Ollama local endpoint
+                self.api_url = "http://localhost:11434/api/generate"
+        # For Ollama, no auth needed; for Grok, we'll add Bearer header later.
+
 
     def run(self, failed_locator, candidates, error_type, page_title):
         """
@@ -17,7 +40,7 @@ class AIAgent:
         # Sort candidates by similarity score descending
         sorted_candidates = sorted(candidates, key=lambda x: x.get("similarity_score", 0), reverse=True)
 
-        # Try Ollama first with a short 30s timeout
+        # Try AI first with a short 30s timeout
         try:
             candidate_list_str = str(sorted_candidates[:5])  # Top 5 only to keep prompt concise
 
@@ -35,29 +58,43 @@ class AIAgent:
                 "}"
             )
 
-            payload = {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "num_predict": 100,
+            if self.backend == "grok":
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 200,
                     "temperature": 0.1
                 }
-            }
-
-            response = requests.post(self.api_url, json=payload, timeout=30)
-            response.raise_for_status()
-            response_data = response.json()
-            raw_text = response_data.get("response", "").strip()
+                response = requests.post(self.api_url, json=payload, headers=headers, timeout=30)
+                response.raise_for_status()
+                response_data = response.json()
+                raw_text = response_data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            else:
+                payload = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "num_predict": 100,
+                        "temperature": 0.1
+                    }
+                }
+                response = requests.post(self.api_url, json=payload, timeout=30)
+                response.raise_for_status()
+                response_data = response.json()
+                raw_text = response_data.get("response", "").strip()
 
             parsed = self._parse_json_response(raw_text)
-            parsed["source"] = "ollama"
-            print("[AIAgent] Ollama suggestion: replace '" + str(failed_locator) + "' -> '" + str(parsed.get("replacement")) + "' (confidence: " + str(parsed.get("confidence")) + "%)")
+            parsed["source"] = self.backend
+            print("[AIAgent] AI suggestion: replace '" + str(failed_locator) + "' -> '" + str(parsed.get("replacement")) + "' (confidence: " + str(parsed.get("confidence")) + "%)")
             return parsed
 
-        except Exception as ollama_err:
-            # Ollama unavailable or slow — use DOM similarity fallback
-            print("[AIAgent] Ollama unavailable (" + type(ollama_err).__name__ + "). Using DOM similarity fallback.")
+        except Exception as e:
+            print("[AIAgent] AI request failed: " + str(e) + ". Falling back to DOM...")
             return self._dom_fallback(failed_locator, sorted_candidates)
 
     def _dom_fallback(self, failed_locator, sorted_candidates):
