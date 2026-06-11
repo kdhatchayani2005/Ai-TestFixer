@@ -1,0 +1,11 @@
+.env
+.venv/
+env/
+venv/
+__pycache__/
+*.pyc
+logs/
+screenshots/
+reports/
+database/testfixer.db
+.DS_Store
